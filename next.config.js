@@ -9,11 +9,6 @@ const nextConfig = {
   },
   // 将静态文件输出到out目录
   distDir: 'out',
-  // 启用Cloudflare Pages兼容性
-  experimental: {
-    // 使用appDir时确保兼容性
-    appDir: false,
-  },
 }
 
 module.exports = nextConfig 

@@ -1,7 +1,7 @@
 # Cloudflare Pages配置文件
 
 [build]
-command = "npm run build"
+command = "npm install && npm run build"
 publish = "out"
 base = "/"
 

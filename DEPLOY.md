@@ -1,5 +1,18 @@
 # Cloudflare Pages部署指南
 
+## 准备工作
+
+在部署前，请确保您的package.json和package-lock.json文件是同步的：
+
+```bash
+# 在本地更新package-lock.json
+npm install
+# 然后提交更新后的文件
+git add package-lock.json
+git commit -m "更新package-lock.json"
+git push
+```
+
 ## 通过命令行部署
 
 1. 确保已安装Wrangler CLI：
@@ -27,7 +40,7 @@ npm run deploy:cloudflare
 6. 配置构建设置:
    - 项目名称: binance-alpha-app
    - 生产分支: main
-   - 构建命令: `npm run build`
+   - 构建命令: `npm install && npm run build`
    - 构建输出目录: `out`
    - 环境变量: 根据需要添加
 7. 点击"保存并部署"
@@ -38,6 +51,7 @@ npm run deploy:cloudflare
 
 1. 构建项目：
 ```bash
+npm install
 npm run build
 ```
 
@@ -50,9 +64,10 @@ npm run build
 如果你在部署过程中遇到错误，请检查以下几点：
 
 1. **构建错误**：确保你的项目可以在本地成功构建
-2. **权限问题**：确保Wrangler已正确登录到你的Cloudflare账户
-3. **路径问题**：确保`out`目录存在并包含所有必要的构建文件
-4. **配置问题**：检查`next.config.js`中的`output: 'export'`设置是否正确
+2. **package-lock.json同步问题**：如果出现`npm ci`错误，请在本地运行`npm install`并提交更新后的package-lock.json
+3. **权限问题**：确保Wrangler已正确登录到你的Cloudflare账户
+4. **路径问题**：确保`out`目录存在并包含所有必要的构建文件
+5. **配置问题**：检查`next.config.js`中的`output: 'export'`设置是否正确
 
 ## 自定义域名设置
 
