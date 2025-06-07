@@ -1,18 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Trophy, TrendingUp, Calendar } from 'lucide-react';
 
+// 定义积分数据类型接口
+interface PointsData {
+  points: number;
+  consumed: number;
+}
+
+// 定义本地存储键名
+const STORAGE_KEYS = {
+  THRESHOLD: 'binance_alpha_threshold',
+  CURRENT_BALANCE: 'binance_alpha_current_balance',
+  DAILY_TRADE_AMOUNT: 'binance_alpha_daily_trade_amount',
+  TRADE_LOSS: 'binance_alpha_trade_loss',
+  AIRDROP_AMOUNT: 'binance_alpha_airdrop_amount',
+  PAST_DAYS: 'binance_alpha_past_days'
+};
+
 const BinanceAlphaCalculator = () => {
-  const [threshold, setThreshold] = useState(210);
-  const [currentBalance, setCurrentBalance] = useState(10000);
+  // 从本地存储读取初始值，如果没有则使用默认值
+  const getFromStorage = (key: string, defaultValue: any) => {
+    if (typeof window === 'undefined') return defaultValue; // 防止SSR报错
+    
+    try {
+      const storedValue = localStorage.getItem(key);
+      return storedValue ? JSON.parse(storedValue) : defaultValue;
+    } catch (error) {
+      console.error('读取本地存储失败:', error);
+      return defaultValue;
+    }
+  };
+
+  const [threshold, setThreshold] = useState(() => getFromStorage(STORAGE_KEYS.THRESHOLD, 210));
+  const [currentBalance, setCurrentBalance] = useState(() => getFromStorage(STORAGE_KEYS.CURRENT_BALANCE, 10000));
   const [currentPoints, setCurrentPoints] = useState(0);
-  const [dailyTradeAmount, setDailyTradeAmount] = useState(8192);
-  const [airdropAmount, setAirdropAmount] = useState(80);
+  const [dailyTradeAmount, setDailyTradeAmount] = useState(() => getFromStorage(STORAGE_KEYS.DAILY_TRADE_AMOUNT, 8192));
+  const [airdropAmount, setAirdropAmount] = useState(() => getFromStorage(STORAGE_KEYS.AIRDROP_AMOUNT, 80));
+  const [tradeLoss, setTradeLoss] = useState(() => getFromStorage(STORAGE_KEYS.TRADE_LOSS, 0.01));
   
   // 生成交易金额选项（1024到262144，按倍数递增）
   const tradeAmountOptions: number[] = [];
   for (let amount = 1024; amount <= 262144; amount *= 2) {
     tradeAmountOptions.push(amount);
   }
+  
+  // 生成获得积分选项（0和15到30）
+  const earnedPointsOptions: number[] = [0];
+  for (let points = 15; points <= 30; points++) {
+    earnedPointsOptions.push(points);
+  }
+  
+  // 生成消耗积分选项（0和15到60，步长为15）
+  const consumedPointsOptions: number[] = [0, 15, 30, 45, 60];
   
   // 获取当前日期并格式化为MM-DD
   const formatDate = (dayOffset: number) => {
@@ -22,8 +61,9 @@ const BinanceAlphaCalculator = () => {
     const day = String(targetDate.getDate()).padStart(2, '0');
     return `${month}-${day}`;
   };
-  const [tradeLoss, setTradeLoss] = useState(0.01);
-  const [pastDays, setPastDays] = useState([
+  
+  // 默认15天积分数据
+  const defaultPastDays: PointsData[] = [
     { points: 17, consumed: 0 },
     { points: 19, consumed: 0 },
     { points: 18, consumed: 0 },
@@ -39,10 +79,41 @@ const BinanceAlphaCalculator = () => {
     { points: 20, consumed: 0 },
     { points: 20, consumed: 0 },
     { points: 20, consumed: 15 }
-  ]);
-  const [pastDaysText, setPastDaysText] = useState("17 19 18 18 18 18 18(-15) 18(-15) 18(-15) 18(-15) 18 19 20 20 20(-15)");
+  ];
+  
+  const [pastDays, setPastDays] = useState<PointsData[]>(() => getFromStorage(STORAGE_KEYS.PAST_DAYS, defaultPastDays));
+  const [pastDaysText, setPastDaysText] = useState("");
   const [results, setResults] = useState<any>(null);
   const [futureAirdrops, setFutureAirdrops] = useState(Array(30).fill(false));
+
+  // 将积分数据转换为文本格式并更新pastDaysText
+  const updateTextFromData = (daysData: PointsData[]) => {
+    const textParts = daysData.map(day => {
+      if (day.consumed > 0) {
+        return `${day.points}(-${day.consumed})`;
+      } else {
+        return `${day.points}`;
+      }
+    });
+    setPastDaysText(textParts.join(' '));
+  };
+
+  // 初始化时从pastDays生成文本表示
+  useEffect(() => {
+    updateTextFromData(pastDays);
+  }, []);
+
+  // 保存设置到本地存储
+  useEffect(() => {
+    if (typeof window === 'undefined') return; // 防止SSR报错
+    
+    localStorage.setItem(STORAGE_KEYS.THRESHOLD, JSON.stringify(threshold));
+    localStorage.setItem(STORAGE_KEYS.CURRENT_BALANCE, JSON.stringify(currentBalance));
+    localStorage.setItem(STORAGE_KEYS.DAILY_TRADE_AMOUNT, JSON.stringify(dailyTradeAmount));
+    localStorage.setItem(STORAGE_KEYS.TRADE_LOSS, JSON.stringify(tradeLoss));
+    localStorage.setItem(STORAGE_KEYS.AIRDROP_AMOUNT, JSON.stringify(airdropAmount));
+    localStorage.setItem(STORAGE_KEYS.PAST_DAYS, JSON.stringify(pastDays));
+  }, [threshold, currentBalance, dailyTradeAmount, tradeLoss, airdropAmount, pastDays]);
 
   // 计算资产积分
   const calculateBalancePoints = (balance: number) => {
@@ -101,9 +172,9 @@ const BinanceAlphaCalculator = () => {
   };
 
   // 解析文本格式的积分数据
-  const parsePastDaysText = (text: string) => {
+  const parsePastDaysText = (text: string): PointsData[] => {
     const parts = text.trim().split(/\s+/);
-    const newPastDays: Array<{points: number, consumed: number}> = [];
+    const newPastDays: PointsData[] = [];
     
     for (let i = 0; i < 15; i++) {
       if (i < parts.length) {
@@ -125,7 +196,7 @@ const BinanceAlphaCalculator = () => {
   };
 
   // 将积分数据转换为文本格式
-  const updatePastDaysText = (daysData: Array<{points: number, consumed: number}>) => {
+  const updatePastDaysText = (daysData: PointsData[]) => {
     const textParts = daysData.map(day => {
       if (day.consumed > 0) {
         return `${day.points}(-${day.consumed})`;
@@ -243,17 +314,43 @@ const BinanceAlphaCalculator = () => {
     });
   };
 
+  // 添加一个重置数据的函数
+  const resetToDefault = () => {
+    if (confirm('确定要重置所有数据吗？这将清除您的所有设置和历史数据。')) {
+      setThreshold(210);
+      setCurrentBalance(10000);
+      setDailyTradeAmount(8192);
+      setTradeLoss(0.01);
+      setAirdropAmount(80);
+      setPastDays(defaultPastDays);
+      updateTextFromData(defaultPastDays);
+      setResults(null);
+      setFutureAirdrops(Array(30).fill(false));
+      
+      // 清除本地存储
+      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gradient-to-br from-yellow-50 to-orange-50 min-h-screen">
       <div className="bg-white rounded-xl shadow-2xl p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="bg-yellow-500 p-3 rounded-lg">
-            <Calculator className="w-8 h-8 text-white" />
+        <div className="flex items-center justify-between gap-3 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-yellow-500 p-3 rounded-lg">
+              <Calculator className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">币安Alpha积分计算工具</h1>
+              <p className="text-gray-600 mt-1">计算未来30天空投参与机会</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">币安Alpha积分计算工具</h1>
-            <p className="text-gray-600 mt-1">计算未来30天空投参与机会</p>
-          </div>
+          <button 
+            onClick={resetToDefault}
+            className="text-xs text-gray-500 hover:text-red-500 transition-colors duration-200"
+          >
+            重置数据
+          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -373,28 +470,32 @@ const BinanceAlphaCalculator = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {pastDays.map((day, index) => {
+                    {pastDays.map((day: PointsData, index: number) => {
                       const pastDate = formatDate(index - 15);
                       return (
                         <tr key={index}>
                           <td className="px-3 py-1.5 whitespace-nowrap text-xs text-gray-600">{pastDate}</td>
                           <td className="px-1 py-1">
-                            <input
-                              type="number"
+                            <select
                               value={day.points}
                               onChange={(e) => handlePastDayChange(index, 'points', e.target.value)}
                               className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                              min="0"
-                            />
+                            >
+                              {earnedPointsOptions.map(points => (
+                                <option key={`earned-${points}`} value={points}>{points}</option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-1 py-1">
-                            <input
-                              type="number"
+                            <select
                               value={day.consumed}
                               onChange={(e) => handlePastDayChange(index, 'consumed', e.target.value)}
                               className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
-                              min="0"
-                            />
+                            >
+                              {consumedPointsOptions.map(points => (
+                                <option key={`consumed-${points}`} value={points}>{points}</option>
+                              ))}
+                            </select>
                           </td>
                         </tr>
                       );
