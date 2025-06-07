@@ -1,0 +1,14 @@
+# Cloudflare Pages配置文件
+
+[build]
+command = "npm run build"
+publish = "out"
+base = "/"
+
+[build.environment]
+NODE_VERSION = "18"
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200 

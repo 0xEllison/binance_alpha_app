@@ -1,0 +1,14 @@
+[env.production]
+name = "binance-alpha-app"
+workers_dev = true
+compatibility_date = "2023-11-21"
+compatibility_flags = ["nodejs_compat"]
+
+[site]
+bucket = ".next"
+
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker" 
