@@ -6,9 +6,4 @@ publish = "out"
 base = "/"
 
 [build.environment]
-NODE_VERSION = "18"
-
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200 
+NODE_VERSION = "18" 
